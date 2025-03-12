@@ -78,53 +78,50 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 html = await response.text()
                 _LOGGER.debug("Login page content length: %d", len(html))
                 
-                # Log the first 1000 characters of HTML for debugging
-                _LOGGER.debug("Login page HTML preview: %s", html[:1000])
+                # Save HTML for debugging if needed
+                _LOGGER.debug("Full login page HTML: %s", html)
                 
                 soup = BeautifulSoup(html, 'html.parser')
                 
-                # Find all form elements for debugging
-                forms = soup.find_all('form')
-                _LOGGER.debug("Found %d forms on page", len(forms))
-                for i, form in enumerate(forms):
-                    _LOGGER.debug("Form %d action: %s", i, form.get('action', 'No action'))
-                    _LOGGER.debug("Form %d method: %s", i, form.get('method', 'No method'))
-                
-                # Find all potential CSRF tokens
+                # Try to find CSRF token in multiple ways
                 csrf_token = None
                 
-                # Try meta tags first
-                meta_tags = soup.find_all('meta')
-                _LOGGER.debug("Found %d meta tags", len(meta_tags))
-                for meta in meta_tags:
-                    if meta.get('name') in ['csrf-token', '_csrf', 'csrf']:
-                        csrf_token = meta.get('content')
-                        _LOGGER.debug("Found CSRF token in meta tag: %s", csrf_token)
-                        break
+                # Method 1: Look for a meta tag with name="csrf-token"
+                meta = soup.find('meta', {'name': 'csrf-token'})
+                if meta:
+                    csrf_token = meta.get('content')
+                    _LOGGER.debug("Found CSRF token in meta tag: %s", csrf_token)
                 
-                # Try form inputs if no meta tag found
+                # Method 2: Look for hidden input with name containing csrf
                 if not csrf_token:
-                    csrf_inputs = soup.find_all('input', {'name': ['_csrf', 'csrf_token', 'csrf']})
-                    _LOGGER.debug("Found %d potential CSRF input fields", len(csrf_inputs))
-                    for input_field in csrf_inputs:
-                        csrf_token = input_field.get('value')
-                        if csrf_token:
-                            _LOGGER.debug("Found CSRF token in input field: %s", csrf_token)
-                            break
-                
-                # Try hidden inputs as last resort
-                if not csrf_token:
-                    hidden_inputs = soup.find_all('input', {'type': 'hidden'})
-                    _LOGGER.debug("Found %d hidden input fields", len(hidden_inputs))
-                    for hidden in hidden_inputs:
-                        _LOGGER.debug("Hidden input name: %s, value: %s", hidden.get('name'), hidden.get('value'))
-                        if hidden.get('name') and 'csrf' in hidden.get('name').lower():
-                            csrf_token = hidden.get('value')
+                    for input_tag in soup.find_all('input', {'type': 'hidden'}):
+                        if input_tag.get('name', '').lower().find('csrf') != -1:
+                            csrf_token = input_tag.get('value')
                             _LOGGER.debug("Found CSRF token in hidden input: %s", csrf_token)
                             break
                 
+                # Method 3: Look for any form with data-csrf attribute
+                if not csrf_token:
+                    form = soup.find('form', {'data-csrf': True})
+                    if form:
+                        csrf_token = form.get('data-csrf')
+                        _LOGGER.debug("Found CSRF token in form data-csrf: %s", csrf_token)
+                
+                # Method 4: Look for script tag containing csrf token
+                if not csrf_token:
+                    for script in soup.find_all('script'):
+                        if script.string and 'csrf' in script.string.lower():
+                            match = re.search(r'csrf["\']?\s*:\s*["\']([^"\']+)["\']', script.string)
+                            if match:
+                                csrf_token = match.group(1)
+                                _LOGGER.debug("Found CSRF token in script tag: %s", csrf_token)
+                                break
+                
                 if not csrf_token:
                     _LOGGER.error("Could not find CSRF token in page")
+                    _LOGGER.debug("Available forms: %s", soup.find_all('form'))
+                    _LOGGER.debug("Available meta tags: %s", soup.find_all('meta'))
+                    _LOGGER.debug("Available hidden inputs: %s", soup.find_all('input', {'type': 'hidden'}))
                     return False
 
                 # Find the form action URL
@@ -133,7 +130,14 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                     _LOGGER.error("Could not find login form")
                     return False
 
-                _LOGGER.debug("Found login form with action: %s", form.get('action', 'No action'))
+                login_url = form.get('action')
+                if login_url:
+                    if not login_url.startswith('http'):
+                        login_url = f"https://web.minut.com{login_url}"
+                else:
+                    login_url = MINUT_LOGIN_URL
+
+                _LOGGER.debug("Using login URL: %s", login_url)
 
             # Perform login
             headers = {
@@ -142,20 +146,22 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 'Origin': 'https://web.minut.com',
                 'Referer': MINUT_LOGIN_URL,
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15',
+                'Cookie': f'XSRF-TOKEN={csrf_token}'
             }
             
             login_data = {
                 'email': self.username,
                 'password': self.password,
                 '_csrf': csrf_token,
+                'csrf_token': csrf_token,
                 'remember': 'on'
             }
             
-            _LOGGER.debug("Attempting login with headers: %s", headers)
+            _LOGGER.debug("Attempting login with data: %s", login_data)
             
             async with self.session.post(
-                MINUT_LOGIN_URL,
+                login_url,
                 data=login_data,
                 headers=headers,
                 allow_redirects=True
@@ -165,7 +171,7 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 html = await response.text()
                 _LOGGER.debug("Login response content length: %d", len(html))
-                _LOGGER.debug("Login response HTML preview: %s", html[:1000])
+                _LOGGER.debug("Login response HTML: %s", html)
                 
                 if response.status != 200:
                     _LOGGER.error("Login failed with status: %s", response.status)
@@ -174,7 +180,7 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 # Check if we're logged in
                 if '/login' in str(response.url):
                     soup = BeautifulSoup(html, 'html.parser')
-                    error = soup.find('div', {'class': 'alert-danger'})
+                    error = soup.find('div', {'class': ['alert-danger', 'error', 'alert']})
                     if error:
                         _LOGGER.error("Login error: %s", error.text.strip())
                     else:
@@ -184,6 +190,9 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 # Verify we can access the dashboard
                 async with self.session.get(MINUT_DASHBOARD_URL) as dash_response:
                     _LOGGER.debug("Dashboard response status: %s", dash_response.status)
+                    dash_html = await dash_response.text()
+                    _LOGGER.debug("Dashboard HTML: %s", dash_html)
+                    
                     if dash_response.status != 200 or '/login' in str(dash_response.url):
                         _LOGGER.error("Could not access dashboard after login")
                         return False
@@ -194,6 +203,7 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
 
         except Exception as err:
             _LOGGER.error("Login failed with exception: %s", str(err))
+            _LOGGER.exception("Full exception details:")
             return False
 
     async def _fetch_devices_data(self) -> dict:
