@@ -2,10 +2,12 @@
   "domain": "minut_point",
   "name": "Minut Point",
   "documentation": "https://github.com/bechrissed/hass-point",
+  "issue_tracker": "https://github.com/bechrissed/hass-point/issues",
   "dependencies": [],
   "codeowners": ["@bechrissed"],
   "requirements": ["requests", "beautifulsoup4"],
   "config_flow": true,
   "iot_class": "cloud_polling",
-  "version": "0.1.0"
+  "version": "1.0.0",
+  "minimum_ha_version": "2024.1.0"
 }
