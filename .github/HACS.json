@@ -1,0 +1,9 @@
+{
+  "name": "Minut Point Custom Integration",
+  "render_readme": true,
+  "content_in_root": false,
+  "domains": ["point"],
+  "homeassistant": "2024.1.0",
+  "zip_release": true,
+  "filename": "hass-point.zip"
+}

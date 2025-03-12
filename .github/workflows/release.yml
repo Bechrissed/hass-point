@@ -1,0 +1,68 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version from tag
+        id: tag_version
+        run: |
+          echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+
+      - name: Get Changelog Entry
+        id: changelog
+        run: |
+          CHANGELOG_ENTRY=$(git log --format=%B $(git describe --tags --abbrev=0 HEAD^)..HEAD | grep -v '^$' | grep -v '^Merge')
+          echo "CHANGELOG<<EOF" >> $GITHUB_ENV
+          echo "$CHANGELOG_ENTRY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ env.TAG }}
+          body: |
+            # Minut Point Custom Integration ${{ env.TAG }}
+
+            ## What's New
+            ${{ env.CHANGELOG }}
+
+            ## Installation
+            1. Add this repository to HACS:
+               - In HACS, go to Integrations
+               - Click the three dots in the top right corner
+               - Select 'Custom repositories'
+               - Add 'https://github.com/Bechrissed/hass-point'
+               - Category: Integration
+            2. Install the 'Minut Point Custom' integration
+            3. Restart Home Assistant
+            4. Add the integration through the Home Assistant UI
+
+            ## Documentation
+            For full documentation, visit:
+            https://github.com/Bechrissed/hass-point
+
+            ## Support
+            If you encounter any issues, please report them at:
+            https://github.com/Bechrissed/hass-point/issues
+          files: |
+            custom_components/minut_point/manifest.json
+            README.md
+            requirements.txt
+
+      - name: HACS Action
+        uses: "hacs/action@main"
+        with:
+          category: "integration" 
