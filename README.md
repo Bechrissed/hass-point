@@ -1,6 +1,25 @@
-# Home Assistant Minut Point Integration
+# HACS Minut Point Integration
 
-This is a custom integration for Home Assistant that allows you to monitor and control your Minut Point devices. It provides access to various sensors including temperature, humidity, sound level, motion detection, and device status.
+
+![Minut Point integration](https://raw.githubusercontent.com/Bechrissed/hass-point/main/docs/assets/liarminut.png "Minut point liar liar")
+
+A long long time ago (2017 :p) there was a swedish startup called Minut....
+
+ Minut’s created a Kickstarter project to fund the development of their first “Point” devices. After successfully obtaining the initial investment(s) minut released the Point devices with limited features. Promised features and services where added later on or never added at all. Unfortunately, Minut has been quite disappointing toward its early backers, failing to deliver on several promises made during the campaign. One of these was a lifetime subscription for early backers, which has never been fully honored.
+ 
+ To use Minut’s API, backers must subscribe to a monthly plan. Minut initially offered API access to early backers through customer support, enabling it on request. However, when I asked a few times for them to enable it on my account, they refused without any clear explanation. Coupled with their poor communication, it feels like Minut views those who helped them get started as suckers.
+ 
+ In response, I created this HACS integrationt to be able to use the Point devices in Home Assistant without the need of a subscription. The integration utilizes the same logic Minut.com we get for free through the web dashboard pages. Configure the required details of your minut account and you’re good to go.
+ 
+ This is a very quick and dirty approach, where half of the code came from modified Ai generated code, there’s plenty of room for improvement. It works for my needs right now, but I might refine it in the future. If you’d like to contribute, feel free to fork the project or send a pull request to add features or fix any issues.
+ 
+ Cheerio!
+
+
+
+**Minut Point integration usage**
+
+This is a custom integration for Home Assistant that allows you to monitor and control your Minut Point devices. It provides access to various sensors including temperature, humidity, sound level, motion detection, and device status. No subscription is needed. It works for the original point devices but I didn't test it on newer versions or other minut devices as I don't own any.
 
 ## Features
 
@@ -89,4 +108,14 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## Credits
 
-This integration is not affiliated with Minut AB. Minut Point is a trademark of Minut AB. 
+This integration is not affiliated with Minut AB. Minut Point is a trademark of Minut AB.
+
+[hass-point]: https://github.com/Bechrissed/hass-point/
+[commits-shield]: https://img.shields.io/github/commit-activity/y/Bechrissed/hass-point.svg?style=for-the-badge
+[commits]: https://github.com/Bechrissed/hass-point/commits/main
+[hacs]: https://github.com/hacs/integration
+[hacsbadge]: https://img.shields.io/badge/HACS-Default-41BDF5.svg?style=for-the-badge
+[license-shield]: https://img.shields.io/github/license/Bechrissed/hass-point.svg?style=for-the-badge
+[releases-shield]: https://img.shields.io/github/release/Bechrissed/hass-point.svg?style=for-the-badge
+[releases]: https://github.com/Bechrissed/hass-point/releases
+[download-latest-shield]: https://img.shields.io/github/downloads/Bechrissed/hass-point/latest/total?style=for-the-badge

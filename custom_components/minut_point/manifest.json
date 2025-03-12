@@ -1,6 +1,6 @@
 {
-  "domain": "minut_point",
-  "name": "Minut Point",
+  "domain": "point",
+  "name": "Minut Point Custom",
   "documentation": "https://github.com/bechrissed/hass-point",
   "issue_tracker": "https://github.com/bechrissed/hass-point/issues",
   "dependencies": [],
