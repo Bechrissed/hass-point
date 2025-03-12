@@ -1,5 +1,5 @@
 {
-  "domain": "point",
+  "domain": "minut_point",
   "name": "Minut Point Custom",
   "documentation": "https://github.com/bechrissed/hass-point",
   "issue_tracker": "https://github.com/bechrissed/hass-point/issues",
@@ -8,6 +8,6 @@
   "requirements": ["requests", "beautifulsoup4"],
   "config_flow": true,
   "iot_class": "cloud_polling",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "minimum_ha_version": "2024.1.0"
 }

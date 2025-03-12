@@ -1,7 +1,7 @@
 # HACS Minut Point Integration
 
 
-![Minut Point integration](https://raw.githubusercontent.com/Bechrissed/hass-point/main/docs/assets/liarminut.png "Minut point liar liar")
+![Minut Point integration](https://raw.githubusercontent.com/Bechrissed/hass-point/main/docs/assets/minutliar.png "Minut point liar liar")
 
 A long long time ago (2017 :p) there was a swedish startup called Minut....
 
