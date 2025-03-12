@@ -66,45 +66,65 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
     async def _login(self) -> bool:
         """Login to Minut Point dashboard."""
         try:
+            _LOGGER.debug("Starting login process...")
+            
             # First get the login page to extract any necessary tokens
             async with self.session.get(MINUT_LOGIN_URL) as response:
                 if response.status != 200:
                     _LOGGER.error("Failed to get login page: %s", response.status)
                     return False
                 
+                _LOGGER.debug("Got login page, status: %s", response.status)
                 html = await response.text()
+                _LOGGER.debug("Login page content length: %d", len(html))
+                
                 soup = BeautifulSoup(html, 'html.parser')
                 
-                # Find the CSRF token
-                csrf_token = None
-                for meta in soup.find_all('meta'):
-                    if meta.get('name') == 'csrf-token':
-                        csrf_token = meta.get('content')
-                        break
+                # Find the CSRF token from the form
+                csrf_input = soup.find('input', {'name': '_csrf'})
+                if csrf_input and csrf_input.get('value'):
+                    csrf_token = csrf_input.get('value')
+                    _LOGGER.debug("Found CSRF token in form input")
+                else:
+                    # Try meta tag as fallback
+                    for meta in soup.find_all('meta'):
+                        if meta.get('name') == 'csrf-token':
+                            csrf_token = meta.get('content')
+                            _LOGGER.debug("Found CSRF token in meta tag")
+                            break
+                    else:
+                        csrf_token = None
                 
                 if not csrf_token:
                     _LOGGER.error("Could not find CSRF token")
                     return False
 
                 # Find the form action URL
-                form = soup.find('form', {'action': True})
+                form = soup.find('form', {'method': 'post'})
                 if not form:
                     _LOGGER.error("Could not find login form")
                     return False
+
+                _LOGGER.debug("Found login form")
 
             # Perform login
             headers = {
                 'Content-Type': 'application/x-www-form-urlencoded',
                 'X-CSRF-Token': csrf_token,
                 'Origin': 'https://web.minut.com',
-                'Referer': MINUT_LOGIN_URL
+                'Referer': MINUT_LOGIN_URL,
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15'
             }
             
             login_data = {
                 'email': self.username,
                 'password': self.password,
-                '_csrf': csrf_token
+                '_csrf': csrf_token,
+                'remember': 'on'
             }
+            
+            _LOGGER.debug("Attempting login with headers: %s", headers)
             
             async with self.session.post(
                 MINUT_LOGIN_URL,
@@ -112,22 +132,39 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 headers=headers,
                 allow_redirects=True
             ) as response:
+                _LOGGER.debug("Login response status: %s", response.status)
+                _LOGGER.debug("Login response URL: %s", response.url)
+                
+                html = await response.text()
+                _LOGGER.debug("Login response content length: %d", len(html))
+                
                 if response.status != 200:
                     _LOGGER.error("Login failed with status: %s", response.status)
                     return False
                 
-                # Check if we're logged in by looking for specific elements
-                html = await response.text()
+                # Check if we're logged in
                 if '/login' in str(response.url):
-                    _LOGGER.error("Still on login page after login attempt")
+                    soup = BeautifulSoup(html, 'html.parser')
+                    error = soup.find('div', {'class': 'alert-danger'})
+                    if error:
+                        _LOGGER.error("Login error: %s", error.text.strip())
+                    else:
+                        _LOGGER.error("Still on login page after login attempt")
                     return False
+                
+                # Verify we can access the dashboard
+                async with self.session.get(MINUT_DASHBOARD_URL) as dash_response:
+                    _LOGGER.debug("Dashboard response status: %s", dash_response.status)
+                    if dash_response.status != 200 or '/login' in str(dash_response.url):
+                        _LOGGER.error("Could not access dashboard after login")
+                        return False
                 
                 self._logged_in = True
                 _LOGGER.debug("Successfully logged in to Minut Point")
                 return True
 
         except Exception as err:
-            _LOGGER.error("Login failed: %s", err)
+            _LOGGER.error("Login failed with exception: %s", str(err))
             return False
 
     async def _fetch_devices_data(self) -> dict:
