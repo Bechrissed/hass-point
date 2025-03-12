@@ -78,25 +78,53 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 html = await response.text()
                 _LOGGER.debug("Login page content length: %d", len(html))
                 
+                # Log the first 1000 characters of HTML for debugging
+                _LOGGER.debug("Login page HTML preview: %s", html[:1000])
+                
                 soup = BeautifulSoup(html, 'html.parser')
                 
-                # Find the CSRF token from the form
-                csrf_input = soup.find('input', {'name': '_csrf'})
-                if csrf_input and csrf_input.get('value'):
-                    csrf_token = csrf_input.get('value')
-                    _LOGGER.debug("Found CSRF token in form input")
-                else:
-                    # Try meta tag as fallback
-                    for meta in soup.find_all('meta'):
-                        if meta.get('name') == 'csrf-token':
-                            csrf_token = meta.get('content')
-                            _LOGGER.debug("Found CSRF token in meta tag")
+                # Find all form elements for debugging
+                forms = soup.find_all('form')
+                _LOGGER.debug("Found %d forms on page", len(forms))
+                for i, form in enumerate(forms):
+                    _LOGGER.debug("Form %d action: %s", i, form.get('action', 'No action'))
+                    _LOGGER.debug("Form %d method: %s", i, form.get('method', 'No method'))
+                
+                # Find all potential CSRF tokens
+                csrf_token = None
+                
+                # Try meta tags first
+                meta_tags = soup.find_all('meta')
+                _LOGGER.debug("Found %d meta tags", len(meta_tags))
+                for meta in meta_tags:
+                    if meta.get('name') in ['csrf-token', '_csrf', 'csrf']:
+                        csrf_token = meta.get('content')
+                        _LOGGER.debug("Found CSRF token in meta tag: %s", csrf_token)
+                        break
+                
+                # Try form inputs if no meta tag found
+                if not csrf_token:
+                    csrf_inputs = soup.find_all('input', {'name': ['_csrf', 'csrf_token', 'csrf']})
+                    _LOGGER.debug("Found %d potential CSRF input fields", len(csrf_inputs))
+                    for input_field in csrf_inputs:
+                        csrf_token = input_field.get('value')
+                        if csrf_token:
+                            _LOGGER.debug("Found CSRF token in input field: %s", csrf_token)
                             break
-                    else:
-                        csrf_token = None
+                
+                # Try hidden inputs as last resort
+                if not csrf_token:
+                    hidden_inputs = soup.find_all('input', {'type': 'hidden'})
+                    _LOGGER.debug("Found %d hidden input fields", len(hidden_inputs))
+                    for hidden in hidden_inputs:
+                        _LOGGER.debug("Hidden input name: %s, value: %s", hidden.get('name'), hidden.get('value'))
+                        if hidden.get('name') and 'csrf' in hidden.get('name').lower():
+                            csrf_token = hidden.get('value')
+                            _LOGGER.debug("Found CSRF token in hidden input: %s", csrf_token)
+                            break
                 
                 if not csrf_token:
-                    _LOGGER.error("Could not find CSRF token")
+                    _LOGGER.error("Could not find CSRF token in page")
                     return False
 
                 # Find the form action URL
@@ -105,7 +133,7 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                     _LOGGER.error("Could not find login form")
                     return False
 
-                _LOGGER.debug("Found login form")
+                _LOGGER.debug("Found login form with action: %s", form.get('action', 'No action'))
 
             # Perform login
             headers = {
@@ -137,6 +165,7 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                 
                 html = await response.text()
                 _LOGGER.debug("Login response content length: %d", len(html))
+                _LOGGER.debug("Login response HTML preview: %s", html[:1000])
                 
                 if response.status != 200:
                     _LOGGER.error("Login failed with status: %s", response.status)
