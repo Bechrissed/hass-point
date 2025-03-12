@@ -1,0 +1,11 @@
+{
+  "domain": "minut_point",
+  "name": "Minut Point",
+  "documentation": "https://github.com/bechrissed/hass-point",
+  "dependencies": [],
+  "codeowners": ["@bechrissed"],
+  "requirements": ["requests", "beautifulsoup4"],
+  "config_flow": true,
+  "iot_class": "cloud_polling",
+  "version": "0.1.0"
+}
