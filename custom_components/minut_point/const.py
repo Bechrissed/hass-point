@@ -13,6 +13,7 @@ SENSOR_HUMIDITY = "humidity"
 SENSOR_SOUND = "sound"
 SENSOR_MOTION = "motion"
 SENSOR_BATTERY = "battery"
+SENSOR_WIFI = "wifi_signal"
 
 SENSOR_TYPES = {
     SENSOR_TEMPERATURE: {
@@ -48,6 +49,13 @@ SENSOR_TYPES = {
         "unit": "%",
         "icon": "mdi:battery",
         "device_class": "battery",
+        "state_class": "measurement",
+    },
+    SENSOR_WIFI: {
+        "name": "WiFi Signal",
+        "unit": "dBm",
+        "icon": "mdi:wifi",
+        "device_class": "signal_strength",
         "state_class": "measurement",
     },
 } 

@@ -42,14 +42,22 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
         self.password = password
         self.session = aiohttp.ClientSession()
         self._devices = {}
+        self._logged_in = False
 
     async def _async_update_data(self):
         """Update data via web scraping."""
         try:
-            if not await self._login():
+            if not self._logged_in and not await self._login():
                 raise ConfigEntryAuthFailed("Failed to authenticate with Minut Point")
 
             devices_data = await self._fetch_devices_data()
+            if not devices_data:
+                _LOGGER.debug("No devices found, trying to re-login")
+                self._logged_in = False
+                if not await self._login():
+                    raise ConfigEntryAuthFailed("Failed to re-authenticate with Minut Point")
+                devices_data = await self._fetch_devices_data()
+                
             return devices_data
         except Exception as err:
             _LOGGER.error("Error updating Minut Point data: %s", err)
@@ -61,6 +69,7 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
             # First get the login page to extract any necessary tokens
             async with self.session.get(MINUT_LOGIN_URL) as response:
                 if response.status != 200:
+                    _LOGGER.error("Failed to get login page: %s", response.status)
                     return False
                 
                 html = await response.text()
@@ -77,28 +86,45 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                     _LOGGER.error("Could not find CSRF token")
                     return False
 
+                # Find the form action URL
+                form = soup.find('form', {'action': True})
+                if not form:
+                    _LOGGER.error("Could not find login form")
+                    return False
+
             # Perform login
             headers = {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': csrf_token
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-Token': csrf_token,
+                'Origin': 'https://web.minut.com',
+                'Referer': MINUT_LOGIN_URL
             }
             
             login_data = {
                 'email': self.username,
-                'password': self.password
+                'password': self.password,
+                '_csrf': csrf_token
             }
             
             async with self.session.post(
                 MINUT_LOGIN_URL,
-                json=login_data,
-                headers=headers
+                data=login_data,
+                headers=headers,
+                allow_redirects=True
             ) as response:
                 if response.status != 200:
                     _LOGGER.error("Login failed with status: %s", response.status)
                     return False
                 
-                # Check if we're redirected to the dashboard
-                return response.url.path == '/dashboard'
+                # Check if we're logged in by looking for specific elements
+                html = await response.text()
+                if '/login' in str(response.url):
+                    _LOGGER.error("Still on login page after login attempt")
+                    return False
+                
+                self._logged_in = True
+                _LOGGER.debug("Successfully logged in to Minut Point")
+                return True
 
         except Exception as err:
             _LOGGER.error("Login failed: %s", err)
@@ -112,9 +138,15 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
             # First get the devices overview page
             async with self.session.get(MINUT_DEVICES_URL) as response:
                 if response.status != 200:
-                    raise Exception(f"Failed to fetch devices page: {response.status}")
+                    _LOGGER.error("Failed to fetch devices page: %s", response.status)
+                    return {}
                 
                 html = await response.text()
+                if '/login' in str(response.url):
+                    _LOGGER.debug("Session expired, need to re-login")
+                    self._logged_in = False
+                    return {}
+                    
                 soup = BeautifulSoup(html, 'html.parser')
                 
                 # Find all device links
@@ -135,7 +167,7 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
 
         except Exception as err:
             _LOGGER.error("Failed to fetch devices data: %s", err)
-            raise
+            return {}
 
     async def _fetch_device_detail(self, device_url: str) -> dict | None:
         """Fetch detailed data for a specific device."""
@@ -146,6 +178,11 @@ class MinutPointDataUpdateCoordinator(DataUpdateCoordinator):
                     return None
                 
                 html = await response.text()
+                if '/login' in str(response.url):
+                    _LOGGER.debug("Session expired while fetching device details")
+                    self._logged_in = False
+                    return None
+                    
                 soup = BeautifulSoup(html, 'html.parser')
                 
                 # Extract device name
