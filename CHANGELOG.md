@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1] - 2024-03-13
+
+### Fixed
+- Restored config flow functionality
+- Added missing translations
+- Added voluptuous dependency
+
 ## [1.2.0] - 2024-03-13
 
 ### Changed

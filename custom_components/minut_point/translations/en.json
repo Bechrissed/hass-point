@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "username": "Email",
+          "password": "Password"
+        },
+        "description": "Please enter your Minut Point credentials.",
+        "title": "Minut Point"
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid authentication",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "Device already configured"
+    }
+  }
+}

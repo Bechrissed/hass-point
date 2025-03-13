@@ -5,9 +5,9 @@
   "issue_tracker": "https://github.com/bechrissed/hass-point/issues",
   "dependencies": [],
   "codeowners": ["@bechrissed"],
-  "requirements": ["aiohttp>=3.8.0", "async-timeout>=4.0.0"],
+  "requirements": ["aiohttp>=3.8.0", "async-timeout>=4.0.0", "voluptuous>=0.13.1"],
   "config_flow": true,
   "iot_class": "cloud_polling",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "minimum_ha_version": "2024.1.0"
 }
